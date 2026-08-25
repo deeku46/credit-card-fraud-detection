@@ -11,6 +11,9 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 
+# Data (large files, not tracked)
+data/*.csv
+
 # Environment variables / secrets
 .env
 
@@ -20,4 +23,10 @@ env/
 
 # OS
 .DS_Store
-Thumbs.dbD
+Thumbs.db
+
+# Trained models (regenerate via main.py)
+models/*.joblib
+
+# CatBoost auto-generated training logs
+catboost_info/

@@ -20,7 +20,7 @@ legitimate transactions and miss fraudulent activity.
 
 ## Research Direction
 
-The proposed system aims to combine:
+The proposed system combines:
 
 - Imbalanced-data handling
 - Ensemble machine learning
@@ -49,19 +49,102 @@ DOI: 10.1007/s11042-023-17766-9
 
 ## Dataset
 
-European Credit Card Fraud Detection Dataset
+European Credit Card Fraud Detection Dataset (via Kaggle, ULB Machine
+Learning Group) — 284,807 transactions with a highly imbalanced fraud
+class (~0.17% fraud rate). Not included in this repo due to size —
+download and place at `data/creditcard.csv`.
 
-284,807 transactions with a highly imbalanced fraud class.
+## Pipeline
+
+```text
+Preprocessing → Imbalance Handling (SMOTE/ADASYN/SMOTE-ENN)
+→ Ensemble Fraud Detection (XGBoost + LightGBM + CatBoost)
+→ Uncertainty Estimation (model disagreement)
+→ Cost-Optimized Risk Triage (Approve / Review / Block)
+→ SHAP Explanations + Investigation Summaries
+```
 
 ## Project Status
 
-🚧 Project under development
+✅ Core pipeline implemented and running end-to-end (preprocessing
+through risk triage, SHAP explanations, and investigation summaries).
+🚧 Real-time integration, dashboard, and paper drafting in progress.
+
+## Setup
+
+```bash
+python -m venv venv
+venv\Scripts\activate          # Windows
+pip install -r requirements.txt
+```
+
+Download `creditcard.csv` from Kaggle and place it in `data/`.
+
+## Running
+
+```bash
+python main.py
+```
+
+Runs the full pipeline end-to-end and saves all figures to `outputs/`.
+
+Individual stages can also be run separately, e.g.:
+```bash
+python -m src.preprocess
+python -m src.evaluate
+python -m src.risk_triage
+```
+
+## Results (validation set, SMOTE strategy)
+
+| Metric | Score |
+|---|---|
+| ROC-AUC | 0.999 |
+| PR-AUC | 0.897 |
+| Precision | 0.719 |
+| Recall | 0.872 |
+| F1 | 0.789 |
+
+**Risk tier breakdown** (cost-optimized thresholds, low=0.18 / high=0.92):
+- Approve (automated): 28,107 (99.06%)
+- Review (human escalation): 226 (0.80%)
+- Block (automated): 40 (0.14%)
+
+## Research Novelty
+
+Rather than another fraud classifier (already well-covered by 2024-2026
+literature combining ML + SHAP + LLMs), this project's contribution is a
+**cost-optimized decision layer**: using ensemble disagreement as an
+uncertainty signal, and searching for risk-tier thresholds that minimize
+total operational cost (missed fraud, false alarms, and analyst review
+time) rather than relying on fixed, arbitrary cutoffs.
 
 ## Repository Structure
 
 ```text
 Mini_Project_7th_Sem/
-│
-├── Research papers/     # Local research papers (not uploaded)
-├── README.md
-└── .gitignore
+├── data/                  # dataset (gitignored)
+├── src/
+│   ├── config.py          # paths, seeds, hyperparameters, thresholds
+│   ├── utils.py            # logging, timing helpers
+│   ├── preprocess.py       # data loading, cleaning, feature engineering
+│   ├── imbalance.py        # SMOTE / ADASYN / SMOTE-ENN
+│   ├── models.py            # XGBoost / LightGBM / CatBoost + ensemble
+│   ├── evaluate.py          # ROC-AUC, PR-AUC, strategy comparison
+│   ├── uncertainty.py       # ensemble disagreement / calibration
+│   ├── risk_triage.py       # cost-optimized Approve/Review/Block logic
+│   ├── explain.py           # SHAP explanations
+│   ├── investigate.py       # investigation summaries (template or LLM)
+│   └── visualize.py         # figure generation
+├── models/                 # saved trained models (gitignored)
+├── outputs/                 # generated figures
+├── tests/
+├── Research papers/         # local research papers (not uploaded)
+├── requirements.txt
+├── main.py                  # runs the full pipeline end-to-end
+└── README.md
+```
+
+## Team
+
+Research supervisor: Dr. Sameena Banu
