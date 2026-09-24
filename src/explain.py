@@ -80,3 +80,29 @@ if __name__ == "__main__":
     print(f"\nExplaining transaction (true label: {y_val.iloc[0]}):")
     for feature, value, direction in reasons:
         print(f"  {feature}: SHAP={value}  ({direction})")
+
+from scipy.stats import norm
+
+FEATURE_LABELS = {
+    "Amount": "Transaction amount",
+    "Amount_log": "Transaction amount (log-scaled)",
+    "Hour": "Time of day",
+    "Time": "Elapsed time since first transaction",
+}
+
+
+def describe_feature(name: str, z_value: float) -> str:
+    """Human-readable label + how unusual this feature's value is,
+    treating the standardized value as an approximate z-score.
+    """
+    label = FEATURE_LABELS.get(name, f"Encoded transaction pattern feature ({name})")
+    percentile = norm.cdf(z_value) * 100
+    if abs(z_value) < 1:
+        extremity = "within the normal range"
+    elif abs(z_value) < 2:
+        extremity = "somewhat unusual"
+    elif abs(z_value) < 3:
+        extremity = "highly unusual"
+    else:
+        extremity = "extremely unusual"
+    return f"{label} -- {extremity} (higher than ~{percentile:.0f}% of typical transactions)"

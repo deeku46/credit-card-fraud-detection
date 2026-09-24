@@ -27,25 +27,63 @@ from src.utils import get_logger
 logger = get_logger(__name__)
 
 
+def _recommend_actions(reasons: list) -> list:
+    """Tailored next steps for the analyst, based on which KIND of
+    feature is driving the flag -- not a single generic line for every case.
+    """
+    actions = []
+    feature_names = [r[0] for r in reasons]
+
+    if any(f in ("Amount", "Amount_log") for f in feature_names):
+        actions.append("Verify the transaction amount directly with the cardholder.")
+    if "Hour" in feature_names:
+        actions.append("Confirm the transaction time aligns with the cardholder's typical activity pattern.")
+    if any(f.startswith("V") for f in feature_names):
+        actions.append("Cross-check this transaction against the cardholder's recent purchase history and, "
+                        "if available, device/location metadata.")
+    actions.append("If the cardholder cannot be reached or confirms they did not authorize this, "
+                    "escalate per standard fraud protocol.")
+    return actions
+
+
 def _template_summary(proba: float, uncertainty: float, tier: str, reasons: list) -> str:
-    """Build a readable summary purely from the numbers -- no LLM call."""
+    """Build a detailed, case-specific summary -- not boilerplate. Every
+    section varies based on the actual features and values for THIS
+    transaction, not just the tier label.
+    """
+    from src.explain import describe_feature
+
     reason_lines = "\n".join(
-        f"  - {feature}: {'pushed risk UP' if value > 0 else 'pushed risk DOWN'} "
-        f"(SHAP={value:+.3f})"
+        f"  - {describe_feature(feature, value)}  "
+        f"[{'pushes toward FRAUD' if value > 0 else 'pushes toward LEGITIMATE'}, SHAP={value:+.3f}]"
         for feature, value, _ in reasons
     )
-    summary = (
-        f"Risk tier: {tier}\n"
-        f"Model-estimated fraud probability: {proba:.1%}\n"
-        f"Model disagreement (uncertainty): {uncertainty:.3f}\n"
-        f"Top contributing factors:\n{reason_lines}\n"
-    )
-    if tier == "Review":
-        summary += (
-            "\nRecommended action: manual review. The models disagreed or the "
-            "probability fell in the ambiguous range -- this case was not "
-            "confident enough for automatic approval or blocking."
+
+    if uncertainty >= 0.05:
+        confidence_note = (
+            f"The three base models DISAGREED with each other on this transaction "
+            f"(disagreement score {uncertainty:.3f}) -- meaning the averaged probability "
+            f"of {proba:.1%} should not be trusted at face value. This is why it was "
+            f"escalated regardless of the raw score."
         )
+    else:
+        confidence_note = (
+            f"The three base models agreed closely (disagreement score {uncertainty:.3f}), "
+            f"so the {proba:.1%} fraud probability is a reliable estimate."
+        )
+
+    summary = (
+        f"RISK TIER: {tier}\n"
+        f"Estimated fraud probability: {proba:.1%}\n\n"
+        f"{confidence_note}\n\n"
+        f"Top factors driving this decision:\n{reason_lines}\n"
+    )
+
+    if tier == "Review":
+        actions = _recommend_actions(reasons)
+        action_lines = "\n".join(f"  {i+1}. {a}" for i, a in enumerate(actions))
+        summary += f"\nRecommended next steps:\n{action_lines}\n"
+
     return summary
 
 

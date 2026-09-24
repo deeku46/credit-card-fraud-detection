@@ -77,8 +77,13 @@ def compute_total_cost(decisions: list, y_true: np.ndarray) -> float:
 
 
 def optimize_thresholds(mean_proba: np.ndarray, uncertainty: np.ndarray, y_true: np.ndarray,
-                         low_candidates=None, high_candidates=None) -> dict:
-    """Grid-search low/high probability thresholds to MINIMIZE total cost."""
+                         low_candidates=None, high_candidates=None,
+                         uncertainty_threshold: float = 0.05) -> dict:
+    """Grid-search low/high probability thresholds to MINIMIZE total cost.
+
+    uncertainty_threshold: pass float('inf') to disable the uncertainty
+    signal entirely (used by the ablation study to isolate its effect).
+    """
     if low_candidates is None:
         low_candidates = np.arange(0.02, 0.40, 0.02)
     if high_candidates is None:
@@ -90,7 +95,8 @@ def optimize_thresholds(mean_proba: np.ndarray, uncertainty: np.ndarray, y_true:
     for low, high in itertools.product(low_candidates, high_candidates):
         if low >= high:
             continue
-        decisions = apply_triage(mean_proba, uncertainty, low_threshold=low, high_threshold=high)
+        decisions = apply_triage(mean_proba, uncertainty, low_threshold=low, high_threshold=high,
+                                  uncertainty_threshold=uncertainty_threshold)
         cost = compute_total_cost(decisions, y_true)
         results.append({"low": round(low, 2), "high": round(high, 2), "cost": cost})
         if cost < best["cost"]:
