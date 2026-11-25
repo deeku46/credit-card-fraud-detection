@@ -78,33 +78,41 @@ def compute_total_cost(decisions: list, y_true: np.ndarray) -> float:
 
 def optimize_thresholds(mean_proba: np.ndarray, uncertainty: np.ndarray, y_true: np.ndarray,
                          low_candidates=None, high_candidates=None,
-                         uncertainty_threshold: float = 0.05) -> dict:
-    """Grid-search low/high probability thresholds to MINIMIZE total cost.
+                         uncertainty_threshold: float = 0.05,
+                         uncertainty_candidates=None) -> dict:
+    """Grid-search low/high probability thresholds (and optionally the
+    uncertainty cutoff) to MINIMIZE total cost.
 
-    uncertainty_threshold: pass float('inf') to disable the uncertainty
-    signal entirely (used by the ablation study to isolate its effect).
+    - uncertainty_threshold: single fixed cutoff (float('inf') disables it).
+    - uncertainty_candidates: if given, the cutoff is searched jointly with
+      low/high. Candidates are tried in the order given, and ties go to the
+      earlier one, so put float('inf') ("off") first.
     """
     if low_candidates is None:
         low_candidates = np.arange(0.02, 0.40, 0.02)
     if high_candidates is None:
         high_candidates = np.arange(0.60, 0.995, 0.02)
+    if uncertainty_candidates is None:
+        uncertainty_candidates = [uncertainty_threshold]
 
-    best = {"cost": float("inf"), "low": None, "high": None}
+    best = {"cost": float("inf"), "low": None, "high": None, "uncertainty": None}
     results = []
 
-    for low, high in itertools.product(low_candidates, high_candidates):
-        if low >= high:
-            continue
-        decisions = apply_triage(mean_proba, uncertainty, low_threshold=low, high_threshold=high,
-                                  uncertainty_threshold=uncertainty_threshold)
-        cost = compute_total_cost(decisions, y_true)
-        results.append({"low": round(low, 2), "high": round(high, 2), "cost": cost})
-        if cost < best["cost"]:
-            best = {"cost": cost, "low": low, "high": high}
+    for unc in uncertainty_candidates:
+        for low, high in itertools.product(low_candidates, high_candidates):
+            if low >= high:
+                continue
+            decisions = apply_triage(mean_proba, uncertainty, low_threshold=low,
+                                      high_threshold=high, uncertainty_threshold=unc)
+            cost = compute_total_cost(decisions, y_true)
+            results.append({"low": round(low, 2), "high": round(high, 2),
+                            "uncertainty": unc, "cost": cost})
+            if cost < best["cost"]:
+                best = {"cost": cost, "low": low, "high": high, "uncertainty": unc}
 
     logger.info(
         f"Best thresholds -- low={best['low']:.2f}, high={best['high']:.2f}, "
-        f"total cost={best['cost']:.1f}"
+        f"uncertainty={best['uncertainty']}, total cost={best['cost']:.1f}"
     )
     return best, results
 

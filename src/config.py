@@ -32,7 +32,7 @@ TARGET_COL = "Class"    # 1 = fraud, 0 = legitimate
 # Class imbalance handling
 # ---------------------------------------------------------------------
 IMBALANCE_STRATEGIES = ["smote", "adasyn", "smote_enn"]
-DEFAULT_IMBALANCE_STRATEGY = "smote_enn"
+DEFAULT_IMBALANCE_STRATEGY = "smote"
 # ---------------------------------------------------------------------
 # Model hyperparameters (starting points -- tune later based on val results)
 # ---------------------------------------------------------------------
@@ -62,8 +62,6 @@ CATBOOST_PARAMS = {
     "random_seed": RANDOM_STATE,
     "verbose": False,
 }
-DEFAULT_IMBALANCE_STRATEGY = "smote"
-
 # ---------------------------------------------------------------------
 # Risk-tier / triage thresholds (starting points -- see risk_triage.py
 # for the cost-optimized version, which is this project's novelty)
